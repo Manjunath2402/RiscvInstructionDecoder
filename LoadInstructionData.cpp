@@ -33,6 +33,7 @@ map<string, string> Registers = {
 // Iformat sltiu{"sltiu", "0010011", "011"};
 
 unordered_map<string, Rformat> mapR;
+unordered_map<string, Iformat> mapI;
 void LoadInstructionData(){
     mapR["add"] = Rformat("add", "0110011", "000", "0000000");
     mapR["sub"] = Rformat("sub", "0110011", "000", "0100000");
@@ -42,8 +43,18 @@ void LoadInstructionData(){
     mapR["sll"] = Rformat ("sll", "0110011", "001", "0000000");
     mapR["srl"] = Rformat ("srl", "0110011", "101", "0000000");
     mapR["sra"] = Rformat ("srl", "0110011", "101", "0100000");
-    mapR["slt"] = Rformat ("srl", "0110011", "010", "0000000");
-    mapR["sltu"] = Rformat ("srl", "0110011", "011", "0000000");
+    mapR["slt"] = Rformat ("srl", "0110011", "010", "0000000"); //extra
+    mapR["sltu"] = Rformat ("srl", "0110011", "011", "0000000"); //extra
+
+    mapI["addi"] = Iformat( "", "", "");
+    mapI["xori"] = Iformat( "", "", "");
+    mapI["ori"] = Iformat( "", "", "");
+    mapI["andi"] = Iformat( "", "", "");
+    mapI["slli"] = Iformat( "", "", "");
+    mapI["srli"] = Iformat( "", "", "");
+    mapI["srai"] = Iformat( "", "", "");
+
+
 }
 
 string decoder(string s){
@@ -65,6 +76,9 @@ string decoder(string s){
     if(mapR.find(temp[0]) != mapR.cend()){
         machine_code = Rdecoder(temp[0], temp[1], temp[2], temp[3]);
     }
+    else if(mapI.find(temp[0]) != mapI.end()){
+        machine_code = Idecoder(temp[0], temp[1], temp[2], temp[3]);
+    }
     return machine_code;
 }
 
@@ -82,6 +96,20 @@ string Rdecoder(string Op, string rd, string rs1, string rs2){
     s += (mapR[Op]).opcode;
     return binaryToHex(s);
 }
+
+string Idecoder(string Op, string rd, string rs1, string immediate){
+    rd = RegisterNumber(rd);
+    rs1 = RegisterNumber(rs1);
+    string s = "";
+    // immediate, rs1, funct3, rd, opcode
+    s += immediate;
+    s += rs1;
+    s += (mapI[Op]).funct3;
+    s += rd;
+    s += (mapI[Op]).opcode;
+    return binaryToHex(s);
+}
+
 
 string binaryToHex(string s){
     string fourBin;
