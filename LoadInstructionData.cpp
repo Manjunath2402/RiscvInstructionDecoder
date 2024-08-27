@@ -109,6 +109,9 @@ string Idecoder(string Op, string rd, string rs1, string immediate){
     rd = RegisterNumber(rd);
     rs1 = RegisterNumber(rs1);
     string s = "";
+    immediate = DecToBin(immediate);
+    immediate = immediate.substr(0,12);
+    reverse(immediate.begin(), immediate.end());
     // immediate, rs1, funct3, rd, opcode
     s += immediate;
     s += rs1;
@@ -131,6 +134,30 @@ string binaryToHex(string s){
         converted += BinToHex[fourBin];
     }
     return converted;
+}
+
+string DecToBin(string s){
+    string bin = "";
+    int dec = 0;
+    for(int i = 0; i<s.size(); i++){
+        dec = dec*10 + int(bin[i] - '0'); 
+    }
+    if(dec > 2047 || dec < -2048){
+        cout << "Immediate value " << dec << " does not fit in 12 bits" << endl;
+        exit(0); //properly handle exit
+    }
+    while(dec != 0){
+        if(dec%2==0){
+            bin += "0";
+        }
+        else{
+            bin += "1";
+        }
+
+        dec/=2;
+    }
+    return bin;
+
 }
 
 string RegisterNumber(string r){
