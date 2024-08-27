@@ -46,14 +46,22 @@ void LoadInstructionData(){
     mapR["slt"] = Rformat ("srl", "0110011", "010", "0000000"); //extra
     mapR["sltu"] = Rformat ("srl", "0110011", "011", "0000000"); //extra
 
-    mapI["addi"] = Iformat( "", "", "");
-    mapI["xori"] = Iformat( "", "", "");
-    mapI["ori"] = Iformat( "", "", "");
-    mapI["andi"] = Iformat( "", "", "");
-    mapI["slli"] = Iformat( "", "", "");
-    mapI["srli"] = Iformat( "", "", "");
-    mapI["srai"] = Iformat( "", "", "");
-
+    mapI["addi"] = Iformat( "addi", "0010011", "000");
+    mapI["xori"] = Iformat( "xori", "0010011", "100");
+    mapI["ori"] = Iformat( "ori", "0010011", "110");
+    mapI["andi"] = Iformat( "andi", "0010011", "111");
+    mapI["slli"] = Iformat( "slli", "0010011", "001");
+    mapI["srli"] = Iformat( "srli", "0010011", "101"); // is operation really necessary in the class
+    mapI["srai"] = Iformat( "srai", "0010011", "101");
+    mapI["lb"] = Iformat( "lb", "0000011", "000");
+    mapI["lh"] = Iformat( "lh", "0000011", "001");
+    mapI["lw"] = Iformat( "lw", "0000011", "010");
+    mapI["ld"] = Iformat( "ld", "0000011", "011");
+    mapI["lbu"] = Iformat( "lbu", "0000011", "100");
+    mapI["lhu"] = Iformat( "lhu", "0000011", "101");
+    mapI["lwu"] = Iformat( "lwu", "0000011", "110");
+    mapI["jalr"] = Iformat( "jalr", "1100111", "000");
+// slti, sltiu
 
 }
 
@@ -64,14 +72,14 @@ string decoder(string s){
     int i = 0;
     int j = 0;
     while (c != '\0'){
-        if(c == ' '){
+        if(c == ' ' || c == '('){
             i++;
         }
         else if(c != ','){
             temp[i] += c;
         }
         j++;
-        c = s[j];
+        c = s[j];  // need to error handle if imediate value is too large
     }
     if(mapR.find(temp[0]) != mapR.cend()){
         machine_code = Rdecoder(temp[0], temp[1], temp[2], temp[3]);
