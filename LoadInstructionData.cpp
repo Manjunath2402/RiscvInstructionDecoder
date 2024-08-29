@@ -65,6 +65,11 @@ void LoadInstructionData(){
 
 }
 
+// if immediate is hex
+// 2's complement
+// negative imm
+//extend
+
 string decoder(string s){
     string machine_code;
     char c = s[0];
@@ -155,6 +160,20 @@ string DecToBin(string s){
         }
 
         dec/=2;
+    }
+
+    for(int i = 0; i<bin.size(); i++){
+        int check = 0;
+        if (bin[i] == '0' && check == 0){
+            bin[i] = '1';
+        }
+        else if(bin[i] == '1' && check == 0){
+            bin[i] = '1';
+        } 
+        else if(bin[i]){
+            bin[i] = '0';
+        }
+        
     }
     return bin;
 
