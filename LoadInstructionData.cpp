@@ -34,6 +34,7 @@ map<string, string> Registers = {
 
 unordered_map<string, Rformat> mapR;
 unordered_map<string, Iformat> mapI;
+unordered_map<string, Sformat> mapS;
 void LoadInstructionData(){
     mapR["add"] = Rformat("add", "0110011", "000", "0000000");
     mapR["sub"] = Rformat("sub", "0110011", "000", "0100000");
@@ -51,7 +52,7 @@ void LoadInstructionData(){
     mapI["ori"] = Iformat( "ori", "0010011", "110");
     mapI["andi"] = Iformat( "andi", "0010011", "111");
     mapI["slli"] = Iformat( "slli", "0010011", "001");
-    mapI["srli"] = Iformat( "srli", "0010011", "101"); // is operation really necessary in the class
+    mapI["srli"] = Iformat( "srli", "0010011", "101");
     mapI["srai"] = Iformat( "srai", "0010011", "101");
     mapI["lb"] = Iformat( "lb", "0000011", "000");
     mapI["lh"] = Iformat( "lh", "0000011", "001");
@@ -63,12 +64,13 @@ void LoadInstructionData(){
     mapI["jalr"] = Iformat( "jalr", "1100111", "000");
 // slti, sltiu
 
+    mapS["sd"] = Sformat("sd", "0100011", "011");
+    mapS["sw"] = Sformat("sw", "0100011", "010");
+    mapS["sh"] = Sformat("sh", "0100011", "001");
+    mapS["sb"] = Sformat("sb", "0100011", "000");
 }
 
 // if immediate is hex
-// 2's complement
-// negative imm
-//extend
 
 string decoder(string s){
     string machine_code;
@@ -84,13 +86,16 @@ string decoder(string s){
             temp[i] += c;
         }
         j++;
-        c = s[j];  // need to error handle if imediate value is too large
+        c = s[j];  // need to error handle if immediate value is too large
     }
     if(mapR.find(temp[0]) != mapR.cend()){
         machine_code = Rdecoder(temp[0], temp[1], temp[2], temp[3]);
     }
     else if(mapI.find(temp[0]) != mapI.end()){
         machine_code = Idecoder(temp[0], temp[1], temp[2], temp[3]);
+    }
+    else if(mapS.find(temp[0]) != mapS.end()){
+        machine_code = Sdecoder(temp[0], temp[1], temp[2], temp[3]);
     }
     return machine_code;
 }
@@ -116,6 +121,10 @@ string Idecoder(string Op, string rd, string rs1, string immediate){
     string s = "";
     immediate = DecToBin(immediate);
     immediate = immediate.substr(0,12);
+    if(Op == "srai"){
+        immediate = immediate.substr(0,6);
+        immediate += "000010";
+    }
     reverse(immediate.begin(), immediate.end());
     // immediate, rs1, funct3, rd, opcode
     s += immediate;
@@ -126,6 +135,24 @@ string Idecoder(string Op, string rd, string rs1, string immediate){
     return binaryToHex(s);
 }
 
+string Sdecoder(string Op, string rs2, string rs1, string immediate){
+    rs2 = RegisterNumber(rs2);
+    rs1 = RegisterNumber(rs1);
+    string s = "";
+    immediate = DecToBin(immediate);
+    immediate = immediate.substr(0,12);
+
+    reverse(immediate.begin(), immediate.end());
+    // immediate[11:5], rs2, rs1, funct3, imm[4:0], opcode
+    s += immediate.substr(0,7);
+    s += rs2;
+    s += rs1;
+    s += (mapS[Op]).funct3;
+    s += immediate.substr(7,5);
+    s += (mapS[Op]).opcode;
+    return binaryToHex(s);
+
+}
 
 string binaryToHex(string s){
     string fourBin;
@@ -144,13 +171,24 @@ string binaryToHex(string s){
 string DecToBin(string s){
     string bin = "";
     int dec = 0;
-    for(int i = 0; i<s.size(); i++){
-        dec = dec*10 + int(bin[i] - '0'); 
+    int i = 0;
+    int check = -1;
+
+    if(s[i] == '-'){
+        i = 1;
+    }
+    for(; i<s.length(); i++){
+        dec = dec*10 + int(s[i] - '0'); 
+    }
+    if(s[0] == '-'){
+        dec = -dec;
+        check = 0;
     }
     if(dec > 2047 || dec < -2048){
         cout << "Immediate value " << dec << " does not fit in 12 bits" << endl;
         exit(0); //properly handle exit
     }
+
     while(dec != 0){
         if(dec%2==0){
             bin += "0";
@@ -161,22 +199,30 @@ string DecToBin(string s){
 
         dec/=2;
     }
-
-    for(int i = 0; i<bin.size(); i++){
-        int check = 0;
-        if (bin[i] == '0' && check == 0){
-            bin[i] = '1';
-        }
-        else if(bin[i] == '1' && check == 0){
-            bin[i] = '1';
-        } 
-        else if(bin[i]){
-            bin[i] = '0';
-        }
-        
+    while (bin.size() < 12)
+    {
+        bin += '0';
     }
+    
+    if(check == 0){
+        for(int j = 0; j<bin.size(); j++){    
+            if (bin[j] == '0' && check == 0){
+                bin[j] = '0';
+            }
+            else if(bin[j] == '1' && check == 0){
+                bin[j] = '1';
+                check = 1;
+            } 
+            else if(bin[j] == '1' && check == 1){
+                bin[j] = '0';
+            }
+            else if(bin[j] == '0' && check == 1){
+                bin[j] = '1';
+            }
+        }
+    }
+    
     return bin;
-
 }
 
 string RegisterNumber(string r){
