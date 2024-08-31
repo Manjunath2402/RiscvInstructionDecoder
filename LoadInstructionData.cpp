@@ -1,10 +1,18 @@
 #include "prototypes.hh"
+extern unordered_map<string, int> LabelData;
 
 map<string, string> BinToHex = {
     {"0000", "0"}, {"0001", "1"}, {"0010", "2"}, {"0011", "3"},
     {"0100", "4"}, {"0101", "5"}, {"0110", "6"}, {"0111", "7"},
     {"1000", "8"}, {"1001", "9"}, {"1010", "A"}, {"1011", "B"},
     {"1100", "C"}, {"1101", "D"}, {"1110", "E"}, {"1111", "F"}
+};
+
+map<char, string> HexToBin = {
+    {'0', "0000"}, {'1', "0001"}, {'2', "0010"}, {'3', "0011"},
+    {'4', "0100"}, {'5', "0101"}, {'6', "0110"}, {'7', "0111"},
+    {'8', "1000"}, {'9', "1001"}, {'A', "1010"}, {'B', "1011"},
+    {'C', "1100"}, {'D', "1101"}, {'E', "1110"}, {'F', "1111"}
 };
 
 map<string, string> Registers = {
@@ -25,16 +33,13 @@ map<string, string> Registers = {
     {"fp", "01000"}
 };
 
-// Iformat addi{"addi", "0010011", "000"};
-// Iformat xori{"xori", "0010011", "100"};
-// Iformat ori{"ori", "0010011", "110"};
-// Iformat andi{"andi", "0010011", "111"};
-// Iformat slti{"slti", "0010011", "010"};
-// Iformat sltiu{"sltiu", "0010011", "011"};
-
 unordered_map<string, Rformat> mapR;
 unordered_map<string, Iformat> mapI;
 unordered_map<string, Sformat> mapS;
+unordered_map<string, Bformat> mapB;
+unordered_map<string, Uformat> mapU;
+unordered_map<string, Jformat> mapJ;
+
 void LoadInstructionData(){
     mapR["add"] = Rformat("add", "0110011", "000", "0000000");
     mapR["sub"] = Rformat("sub", "0110011", "000", "0100000");
@@ -68,34 +73,99 @@ void LoadInstructionData(){
     mapS["sw"] = Sformat("sw", "0100011", "010");
     mapS["sh"] = Sformat("sh", "0100011", "001");
     mapS["sb"] = Sformat("sb", "0100011", "000");
+
+    // Branch instructions.
+    mapB["beq"] = Bformat("beq", "1100011", "000");
+    mapB["bne"] = Bformat("bne", "1100011", "001");
+    mapB["blt"] = Bformat("blt", "1100011", "100");
+    mapB["bge"] = Bformat("bge", "1100011", "101");
+    mapB["bltu"] = Bformat("bltu", "1100011", "110");
+    mapB["bgeu"] = Bformat("bgeu", "1100011", "111");
+
+    // Upper format instructions.
+    mapU["lui"] = Uformat("lui", "0110111");
+    mapU["auipc"] = Uformat("auipc", "0010111");
+
+    // Jump format instruction.
+    mapJ["jal"] = Jformat("jal", "1101111");
 }
 
 // if immediate is hex
 
-string decoder(string s){
+string decoder(string s, int line_no){
     string machine_code;
-    char c = s[0];
+    char iterator = s[0];
     string temp[5];
     int i = 0;
-    int j = 0;
-    while (c != '\0'){
-        if(c == ' ' || c == '('){
+    int index = 0;
+    while (iterator != '\0'){
+        if(iterator == ':'){
+            temp[i] = "";
+            i = -1;
+        }
+        else if(iterator == ' ' || iterator == '('){
             i++;
         }
-        else if(c != ','){
-            temp[i] += c;
+        else if(iterator != ',' && iterator != ')'){
+            temp[i] += iterator;
         }
-        j++;
-        c = s[j];  // need to error handle if immediate value is too large
+        index++;
+        iterator = s[index];  // need to error handle if immediate value is too large
     }
+    // In case of instructions which contains labels temp[3] will contain the label.
     if(mapR.find(temp[0]) != mapR.cend()){
         machine_code = Rdecoder(temp[0], temp[1], temp[2], temp[3]);
     }
     else if(mapI.find(temp[0]) != mapI.end()){
-        machine_code = Idecoder(temp[0], temp[1], temp[2], temp[3]);
+        if(mapI[temp[0]].opcode == "0000011"){
+            machine_code = Idecoder(temp[0], temp[1], temp[3], temp[2]);
+        }
+        else{
+            machine_code = Idecoder(temp[0], temp[1], temp[2], temp[3]);
+        }
     }
     else if(mapS.find(temp[0]) != mapS.end()){
-        machine_code = Sdecoder(temp[0], temp[1], temp[2], temp[3]);
+        int offset = stoi(temp[2]);
+        if(offset > 2047 || offset < -2048){
+            cout << "Exceeding immediate value, offset: " << offset << endl;
+            cout << "Line number: " << line_no << endl;
+            exit(0);
+        }
+        machine_code = Sdecoder(temp[0], temp[1], temp[3], temp[2]);
+        // temp[0] = "sd", temp[1]  = "x3", temp[2] = "12", temp[3] = "x5"
+    }
+    else if(mapB.find(temp[0]) != mapB.cend()){
+        // calculating offset.
+        int offset = (LabelData[temp[3]] - line_no) * 4;
+        if((offset > 4095) || (offset < -4096)){
+            cout << "Exceeding branching capability, offset: " << offset << endl;
+
+            cout << "Use jal if this is an unconditinal branch" << endl;
+            exit(0);
+        }
+        temp[3] = to_string(offset);  // temp[3] is in decimal
+        temp[3] = DecToBin(temp[3]);
+        machine_code = Bdecoder(temp[0], temp[1], temp[2], temp[3]);
+    }
+    else if(mapU.find(temp[0]) != mapU.cend()){
+        // If the instruction is a U format instruction then temp[1] will contain rd and temp[2] contain immediate.
+        // Immediate value can be given as hexadecimal or decimal 
+        // immediate value is shifted by 12 bits and then it is added to given value.
+        // In case of auipc immediate is added to PC.
+        if(temp[2].substr(0,2) == "0x"){
+            // value is in hexadecimal.
+            temp[2] = hexToBinary(temp[2]);
+        }
+        else{
+            temp[2] = DecToBin(temp[2]);
+        }
+        machine_code = Udecoder(temp[0], temp[1], temp[2]);
+    }
+    else if(mapJ.find(temp[0]) != mapJ.cend()){
+        int offset = (LabelData[temp[2]] - line_no) * 4;
+        temp[2] = to_string(offset);
+        temp[2] = DecToBin(temp[2]);
+        machine_code = Jdecoder(temp[0], temp[1], temp[2]);
     }
     return machine_code;
 }
@@ -120,13 +190,14 @@ string Idecoder(string Op, string rd, string rs1, string immediate){
     rs1 = RegisterNumber(rs1);
     string s = "";
     immediate = DecToBin(immediate);
+    reverse(immediate.begin(), immediate.end());
     immediate = immediate.substr(0,12);
     if(Op == "srai"){
         immediate = immediate.substr(0,6);
         immediate += "000010";
     }
-    reverse(immediate.begin(), immediate.end());
     // immediate, rs1, funct3, rd, opcode
+    reverse(immediate.begin(), immediate.end());
     s += immediate;
     s += rs1;
     s += (mapI[Op]).funct3;
@@ -140,10 +211,11 @@ string Sdecoder(string Op, string rs2, string rs1, string immediate){
     rs1 = RegisterNumber(rs1);
     string s = "";
     immediate = DecToBin(immediate);
-    immediate = immediate.substr(0,12);
-
     reverse(immediate.begin(), immediate.end());
+    immediate = immediate.substr(0,12);
+    // Sformat need only
     // immediate[11:5], rs2, rs1, funct3, imm[4:0], opcode
+    reverse(immediate.begin(), immediate.end());
     s += immediate.substr(0,7);
     s += rs2;
     s += rs1;
@@ -151,7 +223,72 @@ string Sdecoder(string Op, string rs2, string rs1, string immediate){
     s += immediate.substr(7,5);
     s += (mapS[Op]).opcode;
     return binaryToHex(s);
+}
 
+string Bdecoder(string Op, string rs1, string rs2, string offset){
+    rs1 = RegisterNumber(rs1);
+    rs2 = RegisterNumber(rs2);
+    reverse(offset.begin(), offset.end());
+    offset = offset.substr(1, 12);
+    // In B type instruction we don't care about the least significant byte as it will 
+    // be zero.
+    reverse(offset.begin(), offset.end());
+    string s = "";
+    s += offset[0]; // imm[12] - 1
+    s += offset.substr(2, 6); // This captures imm[10:5] - 6
+    s += rs2;
+    s += rs1;
+    s += (mapB[Op]).funct3;
+    s += offset.substr(8, 4); // imm[4:1]
+    s += offset[1]; // imm[11]
+    s += (mapB[Op]).opcode;
+
+    return binaryToHex(s);
+}
+
+string Udecoder(string Op, string rd, string imm){
+    // passed imm is in binary.
+    rd = RegisterNumber(rd);
+    imm += "000000000000";
+    // adding 12 bits to the lsb.
+    // we will ignore lsb 12 bits of imm.
+    reverse(imm.begin(), imm.end());
+    imm = imm.substr(12, 20);
+    if(imm.length() < 20){
+        int diff = (20 - imm.length());
+        for (size_t i = 0; i < diff; i++){
+            imm += "0";
+        }
+    }
+    // Immediate now contain 20 bits.
+    reverse(imm.begin(), imm.end());
+    string s = "";
+    s += imm;
+    s += rd;
+    s += (mapU[Op].opcode);
+    return binaryToHex(s);
+}
+
+string Jdecoder(string Op, string rd, string imm){
+    // we need 21 bits of imm and we will ignore 0th bit.
+    rd = RegisterNumber(rd);
+    reverse(imm.begin(), imm.end());
+    imm = imm.substr(1, 20);
+    if(imm.length() < 20){
+        int diff = 20 - imm.length();
+        for (size_t i = 0; i < diff; i++){
+            imm += "0";
+        }
+    }
+    reverse(imm.begin(), imm.end());
+    string s = "";
+    s += imm[0]; // 1 bit.
+    s += imm.substr(10, 10); // 12 bits.
+    s += imm[9]; // 1 bit
+    s += imm.substr(1, 8); // 8 bits
+    s += rd;
+    s += (mapJ[Op]).opcode;
+    return binaryToHex(s);
 }
 
 string binaryToHex(string s){
@@ -166,6 +303,17 @@ string binaryToHex(string s){
         converted += BinToHex[fourBin];
     }
     return converted;
+}
+
+string hexToBinary(string s){
+    s = s.substr(2, (s.length() - 2));
+    string bin = "";
+    int index = 0;
+    while (s[index] != '\0'){
+        bin += HexToBin[s[index]];
+        index++;
+    }
+    return bin;
 }
 
 string DecToBin(string s){
@@ -184,10 +332,10 @@ string DecToBin(string s){
         dec = -dec;
         check = 0;
     }
-    if(dec > 2047 || dec < -2048){
-        cout << "Immediate value " << dec << " does not fit in 12 bits" << endl;
-        exit(0); //properly handle exit
-    }
+    // if(dec > 2047 || dec < -2048){
+    //     cout << "Immediate value " << dec << " does not fit in 12 bits" << endl;
+    //     exit(0); //properly handle exit
+    // }
 
     while(dec != 0){
         if(dec%2==0){
@@ -199,7 +347,7 @@ string DecToBin(string s){
 
         dec/=2;
     }
-    while (bin.size() < 12)
+    while (bin.size() < 21)
     {
         bin += '0';
     }
@@ -221,7 +369,7 @@ string DecToBin(string s){
             }
         }
     }
-    
+    reverse(bin.begin(), bin.end());
     return bin;
 }
 

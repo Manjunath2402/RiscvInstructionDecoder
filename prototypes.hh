@@ -5,13 +5,19 @@
 #include <map>
 using namespace std;
 
-string decoder(string);
+string decoder(string, int);
 string Rdecoder(string, string, string, string);
 string Idecoder(string, string, string, string);
 string Sdecoder(string, string, string, string);
+string Bdecoder(string, string, string, string);
+string Udecoder(string, string, string);
+string Jdecoder(string, string, string);
+
 string binaryToHex(string);
+string hexToBinary(string);
 string DecToBin(string);
-string RegisterNumber(string);
+
+string RegisterNumber(string);  // Returns register number in binary format.
 void LoadInstructionData();
 
 struct Rformat{
@@ -74,6 +80,57 @@ struct Sformat{
         operation = s.operation;
         opcode = s.opcode;
         funct3 = s.funct3;
+        return *this;
+    }
+};
+
+class Bformat{
+    public:
+    string operation;
+    string opcode;
+    string funct3;
+    Bformat(): operation(""), opcode(""), funct3("") {}
+    Bformat(string s1, string s2, string s3){
+        operation = s1;
+        opcode = s2;
+        funct3 = s3;
+    }
+    Bformat operator=(Bformat ins){
+        operation = ins.operation;
+        opcode = ins.opcode;
+        funct3 = ins.funct3;
+        return *this;
+    }
+};
+
+class Uformat{
+    public:
+    string operation;
+    string opcode;
+    Uformat(): operation(""), opcode("") {}
+    Uformat(string s1, string s2){
+        operation = s1;
+        opcode = s2;
+    }
+    Uformat operator=(Uformat ins){
+        operation = ins.operation;
+        opcode = ins.opcode;
+        return *this;
+    }
+};
+
+class Jformat{
+    public:
+    string operation;
+    string opcode;
+    Jformat(): operation(""), opcode("") {}
+    Jformat(string s1, string s2){
+        operation = s1;
+        opcode = s2;
+    }
+    Jformat operator=(Jformat ins){
+        operation = ins.operation;
+        opcode = ins.opcode;
         return *this;
     }
 };
