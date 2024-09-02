@@ -95,7 +95,7 @@ void LoadInstructionData(){
 string decoder(string s, int line_no){
     string machine_code;
     char iterator = s[0];
-    string temp[5];
+    string temp[5] = {"", "", "", "", ""};
     int i = 0;
     int index = 0;
     while (iterator != '\0'){
@@ -114,17 +114,48 @@ string decoder(string s, int line_no){
     }
     // In case of instructions which contains labels temp[3] will contain the label.
     if(mapR.find(temp[0]) != mapR.cend()){
+        // If temp[4] is not equal to a empty string then there are more operands than 3.
+        if(temp[4] != ""){
+            cout << "Line number: " << line_no << ". ";
+            cout << "More number of operands for the given instruction: " << temp[0] << ". " << endl;
+            cout << "Instruction: " << s << ". " << "Valid for only 3 operands. " << endl;
+            exit(0);
+        }
         machine_code = Rdecoder(temp[0], temp[1], temp[2], temp[3]);
     }
     else if(mapI.find(temp[0]) != mapI.end()){
+        if(temp[4] != ""){
+            cout << "Line number: " << line_no << ". ";
+            cout << "More number of operands for the given instruction: " << temp[0] << ". " << endl;
+            cout << "Instruction: " << s << ". " << "Valid for only 3 operands. " << endl;
+            exit(0);
+        }
         if(mapI[temp[0]].opcode == "0000011"){
+            int offset = stoi(temp[2]);
+            if(offset > 2047 || offset < -2048){
+                cout << "Offset is out of range(-2048 to 2047)" << endl;
+                cout << "Line number: " << line_no << endl;
+                exit(0);
+            }
             machine_code = Idecoder(temp[0], temp[1], temp[3], temp[2]);
         }
         else{
+            int offset = stoi(temp[3]);
+            if(offset > 2047 || offset < -2048){
+                cout << "Offset " << offset<< " is out of range(-2048 to 2047). ";
+                cout << "Line number: " << line_no << endl;
+                exit(0);
+            }
             machine_code = Idecoder(temp[0], temp[1], temp[2], temp[3]);
         }
     }
     else if(mapS.find(temp[0]) != mapS.end()){
+        if(temp[4] != ""){
+            cout << "Line number: " << line_no << ". ";
+            cout << "More number of operands for the given instruction: " << temp[0] << ". " << endl;
+            cout << "Instruction: " << s << ". " << "Valid for only 3 operands. " << endl;
+            exit(0);
+        }
         int offset = stoi(temp[2]);
         if(offset > 2047 || offset < -2048){
             cout << "Exceeding immediate value, offset: " << offset << endl;
@@ -132,15 +163,13 @@ string decoder(string s, int line_no){
             exit(0);
         }
         machine_code = Sdecoder(temp[0], temp[1], temp[3], temp[2]);
-        // temp[0] = "sd", temp[1]  = "x3", temp[2] = "12", temp[3] = "x5"
     }
     else if(mapB.find(temp[0]) != mapB.cend()){
-        // calculating offset.
         int offset = (LabelData[temp[3]] - line_no) * 4;
         if((offset > 4095) || (offset < -4096)){
             cout << "Exceeding branching capability, offset: " << offset << endl;
-
-            cout << "Use jal if this is an unconditinal branch" << endl;
+            cout << "Line number: " << line_no << endl;
+            cout << "Try using 'jal' if this is an unconditinal branch" << endl;
             exit(0);
         }
         temp[3] = to_string(offset);  // temp[3] is in decimal
@@ -166,6 +195,11 @@ string decoder(string s, int line_no){
         temp[2] = to_string(offset);
         temp[2] = DecToBin(temp[2]);
         machine_code = Jdecoder(temp[0], temp[1], temp[2]);
+    }
+    else{
+        cout << "Invalid Instruction: " << temp[0] << ". " ;
+        cout << "Line number: " << line_no << endl;
+        exit(0);
     }
     return machine_code;
 }
@@ -332,10 +366,6 @@ string DecToBin(string s){
         dec = -dec;
         check = 0;
     }
-    // if(dec > 2047 || dec < -2048){
-    //     cout << "Immediate value " << dec << " does not fit in 12 bits" << endl;
-    //     exit(0); //properly handle exit
-    // }
 
     while(dec != 0){
         if(dec%2==0){
