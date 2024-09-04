@@ -1,6 +1,6 @@
 #include "prototypes.hh"
 extern unordered_map<string, int> LabelData;
-
+static int current_line_no;
 map<string, string> BinToHex = {
     {"0000", "0"}, {"0001", "1"}, {"0010", "2"}, {"0011", "3"},
     {"0100", "4"}, {"0101", "5"}, {"0110", "6"}, {"0111", "7"},
@@ -98,6 +98,7 @@ string decoder(string s, int line_no){
     string temp[5] = {"", "", "", "", ""};
     int i = 0;
     int index = 0;
+    current_line_no = line_no;
     while (iterator != '\0'){
         if(iterator == ':'){
             temp[i] = "";
@@ -123,7 +124,7 @@ string decoder(string s, int line_no){
         }
         machine_code = Rdecoder(temp[0], temp[1], temp[2], temp[3]);
     }
-    else if(mapI.find(temp[0]) != mapI.end()){
+    else if(mapI.find(temp[0]) != mapI.cend()){
         if(temp[4] != ""){
             cout << "Line number: " << line_no << ". ";
             cout << "More number of operands for the given instruction: " << temp[0] << ". " << endl;
@@ -131,6 +132,11 @@ string decoder(string s, int line_no){
             exit(0);
         }
         if(mapI[temp[0]].opcode == "0000011"){
+            if(temp[2] == ""){
+                cout << "Immediate is not provided." << endl;
+                cout << "Line number: " << current_line_no << endl;
+                exit(0);
+            }
             int offset = stoi(temp[2]);
             if(offset > 2047 || offset < -2048){
                 cout << "Offset is out of range(-2048 to 2047)" << endl;
@@ -140,6 +146,11 @@ string decoder(string s, int line_no){
             machine_code = Idecoder(temp[0], temp[1], temp[3], temp[2]);
         }
         else{
+            if(temp[3] == ""){
+                cout << "Immediate is not provided." << endl;
+                cout << "Line number: " << current_line_no << endl;
+                exit(0);
+            }
             int offset = stoi(temp[3]);
             if(offset > 2047 || offset < -2048){
                 cout << "Offset " << offset<< " is out of range(-2048 to 2047). ";
@@ -149,11 +160,16 @@ string decoder(string s, int line_no){
             machine_code = Idecoder(temp[0], temp[1], temp[2], temp[3]);
         }
     }
-    else if(mapS.find(temp[0]) != mapS.end()){
+    else if(mapS.find(temp[0]) != mapS.cend()){
         if(temp[4] != ""){
             cout << "Line number: " << line_no << ". ";
             cout << "More number of operands for the given instruction: " << temp[0] << ". " << endl;
             cout << "Instruction: " << s << ". " << "Valid for only 3 operands. " << endl;
+            exit(0);
+        }
+        if(temp[2] == ""){
+            cout << "Immediate is not provided." << endl;
+            cout << "Line number: " << current_line_no << endl;
             exit(0);
         }
         int offset = stoi(temp[2]);
@@ -165,6 +181,11 @@ string decoder(string s, int line_no){
         machine_code = Sdecoder(temp[0], temp[1], temp[3], temp[2]);
     }
     else if(mapB.find(temp[0]) != mapB.cend()){
+        int l = LabelData[temp[3]];
+        if (l == 0) {
+            cout << "Label Not Found, Label: " << temp[3] << endl;
+            cout << "Line number: " << current_line_no << endl;
+        }
         int offset = (LabelData[temp[3]] - line_no) * 4;
         if((offset > 4095) || (offset < -4096)){
             cout << "Exceeding branching capability, offset: " << offset << endl;
@@ -181,8 +202,14 @@ string decoder(string s, int line_no){
         // Immediate value can be given as hexadecimal or decimal 
         // immediate value is shifted by 12 bits and then it is added to given value.
         // In case of auipc immediate is added to PC.
+        if(temp[2] == ""){
+            cout << "Immediate is not given." << endl;
+            cout << "Line number: " << current_line_no << endl;
+            exit(0);
+        }
         if(temp[2].substr(0,2) == "0x"){
             // value is in hexadecimal.
+
             temp[2] = hexToBinary(temp[2]);
         }
         else{
@@ -191,6 +218,12 @@ string decoder(string s, int line_no){
         machine_code = Udecoder(temp[0], temp[1], temp[2]);
     }
     else if(mapJ.find(temp[0]) != mapJ.cend()){
+        int l = LabelData[temp[2]];
+        if(l == 0){
+            cout << "Label Not Found." << endl;
+            cout << "Line number: " << current_line_no << endl;
+            exit(0);
+        }
         int offset = (LabelData[temp[2]] - line_no) * 4;
         temp[2] = to_string(offset);
         temp[2] = DecToBin(temp[2]);
@@ -208,6 +241,21 @@ string Rdecoder(string Op, string rd, string rs1, string rs2){
     rd = RegisterNumber(rd);
     rs1 = RegisterNumber(rs1);
     rs2 = RegisterNumber(rs2);
+    if(rd == ""){
+        cout << "Could not find the destination register." << endl;
+        cout << "Line number: " << current_line_no << endl;
+        exit(0);
+    }
+    if(rs1 == ""){
+        cout << "Could not find the operand register 1." << endl;
+        cout << "Line number: " << current_line_no << endl;
+        exit(0);
+    }
+    if(rs2 == ""){
+        cout << "Could not find the operand register 2." << endl;
+        cout << "Line number: " << current_line_no << endl;
+        exit(0);
+    }
     string s = "";
     // funct7, rs2, rs1, funct3, rd, opcode
     s += (mapR[Op]).funct7;
@@ -222,6 +270,16 @@ string Rdecoder(string Op, string rd, string rs1, string rs2){
 string Idecoder(string Op, string rd, string rs1, string immediate){
     rd = RegisterNumber(rd);
     rs1 = RegisterNumber(rs1);
+    if(rd == ""){
+        cout << "Could not find the destination register." << endl;
+        cout << "Line number: " << current_line_no << endl;
+        exit(0);
+    }
+    if(rs1 == ""){
+        cout << "Could not find the operand register 1." << endl;
+        cout << "Line number: " << current_line_no << endl;
+        exit(0);
+    }
     string s = "";
     immediate = DecToBin(immediate);
     reverse(immediate.begin(), immediate.end());
@@ -243,6 +301,16 @@ string Idecoder(string Op, string rd, string rs1, string immediate){
 string Sdecoder(string Op, string rs2, string rs1, string immediate){
     rs2 = RegisterNumber(rs2);
     rs1 = RegisterNumber(rs1);
+    if(rs1 == ""){
+        cout << "Could not find the operand register 1." << endl;
+        cout << "Line number: " << current_line_no << endl;
+        exit(0);
+    }
+    if(rs2 == ""){
+        cout << "Could not find the operand register 2." << endl;
+        cout << "Line number: " << current_line_no << endl;
+        exit(0);
+    }
     string s = "";
     immediate = DecToBin(immediate);
     reverse(immediate.begin(), immediate.end());
@@ -262,6 +330,16 @@ string Sdecoder(string Op, string rs2, string rs1, string immediate){
 string Bdecoder(string Op, string rs1, string rs2, string offset){
     rs1 = RegisterNumber(rs1);
     rs2 = RegisterNumber(rs2);
+    if(rs1 == ""){
+        cout << "Could not find the operand register 1." << endl;
+        cout << "Line number: " << current_line_no << endl;
+        exit(0);
+    }
+    if(rs2 == ""){
+        cout << "Could not find the operand register 2." << endl;
+        cout << "Line number: " << current_line_no << endl;
+        exit(0);
+    }
     reverse(offset.begin(), offset.end());
     offset = offset.substr(1, 12);
     // In B type instruction we don't care about the least significant byte as it will 
@@ -283,6 +361,11 @@ string Bdecoder(string Op, string rs1, string rs2, string offset){
 string Udecoder(string Op, string rd, string imm){
     // passed imm is in binary.
     rd = RegisterNumber(rd);
+    if(rd == ""){
+        cout << "Could not find the destination register." << endl;
+        cout << "Line number: " << current_line_no << endl;
+        exit(0);
+    }
     imm += "000000000000";
     // adding 12 bits to the lsb.
     // we will ignore lsb 12 bits of imm.
@@ -306,6 +389,11 @@ string Udecoder(string Op, string rd, string imm){
 string Jdecoder(string Op, string rd, string imm){
     // we need 21 bits of imm and we will ignore 0th bit.
     rd = RegisterNumber(rd);
+    if(rd == ""){
+        cout << "Could not find the destination register." << endl;
+        cout << "Line number: " << current_line_no << endl;
+        exit(0);
+    }
     reverse(imm.begin(), imm.end());
     imm = imm.substr(1, 20);
     if(imm.length() < 20){
