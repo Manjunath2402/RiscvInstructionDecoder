@@ -203,6 +203,14 @@ string decoder(string s, int line_no){
                 exit(0);
             }
 
+            if(temp[0] == "slli" || temp[0] == "srli" || temp[0] == "srai"){
+                if(offset > 63 || offset < 0){
+                    cout << "Immediate value '" << offset << "' does not fit in 6 bits" << endl;
+                    cout << "Line number: " << line_no << endl;
+                    exit(0);
+                }
+            }
+
             machine_code = Idecoder(temp[0], temp[1], temp[2], temp[3]);
         }
     }
