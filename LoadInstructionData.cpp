@@ -1,9 +1,12 @@
 #include "prototypes.hh"
 
+// Label Data defined in main file which conatain information about the label and their line number.
 extern unordered_map<string, int> LabelData;
+
+// Current line number for error handling only visible in this file.
 static int current_line_no;
 
-
+// Binary to Hex for fast access.
 map<string, string> BinToHex = {
     {"0000", "0"}, {"0001", "1"}, {"0010", "2"}, {"0011", "3"},
     {"0100", "4"}, {"0101", "5"}, {"0110", "6"}, {"0111", "7"},
@@ -11,6 +14,7 @@ map<string, string> BinToHex = {
     {"1100", "C"}, {"1101", "D"}, {"1110", "E"}, {"1111", "F"}
 };
 
+// Hex to Binary for fast access.
 map<char, string> HexToBin = {
     {'0', "0000"}, {'1', "0001"}, {'2', "0010"}, {'3', "0011"},
     {'4', "0100"}, {'5', "0101"}, {'6', "0110"}, {'7', "0111"},
@@ -18,6 +22,7 @@ map<char, string> HexToBin = {
     {'C', "1100"}, {'D', "1101"}, {'E', "1110"}, {'F', "1111"}
 };
 
+// Registers and their aliases with binary representation.
 map<string, string> Registers = {
     {"x0", "00000"}, {"x1", "00001"}, {"x2", "00010"}, {"x3", "00011"}, {"x4", "00100"}, {"x5", "00101"},
     {"x6", "00110"}, {"x7", "00111"}, {"x8", "01000"}, {"x9", "01001"}, {"x10", "01010"}, {"x11", "01011"},
@@ -43,6 +48,8 @@ unordered_map<string, Bformat> mapB;
 unordered_map<string, Uformat> mapU;
 unordered_map<string, Jformat> mapJ;
 
+
+// Will create instruction object upon calling. which will be done in the start of the main file.
 void LoadInstructionData(){
     mapR["add"] = Rformat("add", "0110011", "000", "0000000");
     mapR["sub"] = Rformat("sub", "0110011", "000", "0100000");
@@ -93,11 +100,13 @@ void LoadInstructionData(){
     mapJ["jal"] = Jformat("jal", "1101111");
 }
 
+
+// The main decoder which will call specific instruction decoders.
 string decoder(string s, int line_no){
-    string machine_code;
+    string machine_code; // The decode hexadecimal representation of the instruction.
 
     char iterator = s[0];
-    string temp[5] = {"", "", "", "", ""};
+    string temp[5] = {"", "", "", "", ""}; // This will splits instruction, registers and immediates etc..
 
     int i = 0;
     int index = 0;
@@ -132,17 +141,21 @@ string decoder(string s, int line_no){
             exit(0);
         }
 
+        // In R format instruction there will always be three operands.
+        // If there temp[3] is empty then there are less operands in the instruciton provided.
+
         if(temp[3] == ""){
             cout << "Line number: " << line_no << ". ";
             cout << "Few number of operands for the given instruction: " << temp[0] << ". " << endl;
             cout << "Instruction: " << s << ". " << endl;
             exit(0);
         }
-        machine_code = Rdecoder(temp[0], temp[1], temp[2], temp[3]);
 
+        machine_code = Rdecoder(temp[0], temp[1], temp[2], temp[3]);
     }
 
     else if(mapI.find(temp[0]) != mapI.cend()){
+        // In I format instructions the max number of operands are 3 so if temp[4] is not empty then more number of arguments are provided.
 
         if(temp[4] != ""){
             cout << "Line number: " << line_no << ". ";
@@ -150,45 +163,53 @@ string decoder(string s, int line_no){
             cout << "Instruction: " << s << ". " << "Valid for only 3 operands. " << endl;
             exit(0);
         }
-        // if(temp[3] == ""){
-        //     cout << "Line number: " << line_no << ". ";
-        //     cout << "Few number of operands for the given instruction: " << temp[0] << ". " << endl;
-        //     cout << "Instruction: " << s << ". " << endl;
-        //     exit(0);
-        // }
+        
+        // For load instructions the temp[3] will be operand2 and temp[2] will the offset.
         if(mapI[temp[0]].opcode == "0000011"){
+            // If offset is not provided.
             if(temp[2] == ""){
                 cout << "Immediate is not provided." << endl;
                 cout << "Line number: " << current_line_no << endl;
                 exit(0);
             }
+
             int offset = stoi(temp[2]);
+
+            // If offset exceed the range that can be put in 12 bits.
             if(offset > 2047 || offset < -2048){
                 cout << "Offset is out of range(-2048 to 2047)" << endl;
                 cout << "Line number: " << line_no << endl;
                 exit(0);
             }
+
             machine_code = Idecoder(temp[0], temp[1], temp[3], temp[2]);
         }
-
+        // Instruction other than ld will come here.
         else{
+            // If immediate is not provided.
             if(temp[3] == ""){
                 cout << "Immediate is not provided." << endl;
                 cout << "Line number: " << current_line_no << endl;
                 exit(0);
             }
+
             int offset = stoi(temp[3]);
+
+            // If offset exceed the range that can be put in 12 bits.
             if(offset > 2047 || offset < -2048){
                 cout << "Offset " << offset<< " is out of range(-2048 to 2047). ";
                 cout << "Line number: " << line_no << endl;
                 exit(0);
             }
+
             machine_code = Idecoder(temp[0], temp[1], temp[2], temp[3]);
         }
     }
 
     else if(mapS.find(temp[0]) != mapS.cend()){
 
+        // In S format instrution the number of operands are always 3.
+        // If temp[4] is non empty then more number of operands are provided.
         if(temp[4] != ""){
             cout << "Line number: " << line_no << ". ";
             cout << "More number of operands for the given instruction: " << temp[0] << ". " << endl;
@@ -196,6 +217,7 @@ string decoder(string s, int line_no){
             exit(0);
         }
 
+        // If offset is not provided.
         if(temp[2] == ""){
             cout << "Immediate is not provided." << endl;
             cout << "Line number: " << current_line_no << endl;
@@ -203,6 +225,8 @@ string decoder(string s, int line_no){
         }
 
         int offset = stoi(temp[2]);
+
+        // If offset is exceeding the range.
         if(offset > 2047 || offset < -2048){
             cout << "Exceeding immediate value, offset: " << offset << endl;
             cout << "Line number: " << line_no << endl;
@@ -214,13 +238,17 @@ string decoder(string s, int line_no){
 
     else if(mapB.find(temp[0]) != mapB.cend()){
 
+        // If label is not found.
         int l = LabelData[temp[3]];
         if (l == 0) {
             cout << "Label Not Found, Label: " << temp[3] << endl;
             cout << "Line number: " << current_line_no << endl;
+            exit(0);
         }
 
         int offset = (LabelData[temp[3]] - line_no) * 4;
+
+        // If label exceeds the range. 
         if((offset > 4095) || (offset < -4096)){
             cout << "Exceeding branching capability, offset: " << offset << endl;
             cout << "Line number: " << line_no << endl;
@@ -228,8 +256,9 @@ string decoder(string s, int line_no){
             exit(0);
         }
 
-        temp[3] = to_string(offset);  // temp[3] is in decimal
-        temp[3] = DecToBin(temp[3]);
+        temp[3] = to_string(offset);  // temp[3] is in decimal.
+        temp[3] = DecToBin(temp[3]);  // Converting label to decimal value.
+
         machine_code = Bdecoder(temp[0], temp[1], temp[2], temp[3]);
     }
 
@@ -244,9 +273,9 @@ string decoder(string s, int line_no){
             exit(0);
         }
 
+        // If the given immediate is a hexadecimal value.
         if(temp[2].substr(0,2) == "0x"){
             // value is in hexadecimal.
-
             temp[2] = hexToBinary(temp[2]);
         }
 
@@ -259,9 +288,10 @@ string decoder(string s, int line_no){
 
     else if(mapJ.find(temp[0]) != mapJ.cend()){
 
+        // If label is not found.
         int l = LabelData[temp[2]];
         if(l == 0){
-            cout << "Label Not Found." << endl;
+            cout << "Label Not Found, Label: " << temp[2] << endl;
             cout << "Line number: " << current_line_no << endl;
             exit(0);
         }
@@ -274,7 +304,7 @@ string decoder(string s, int line_no){
     }
 
     else{
-
+        // If instruction is not found.
         cout << "Invalid Instruction: " << temp[0] << ". " ;
         cout << "Line number: " << line_no << endl;
         exit(0);
@@ -289,6 +319,7 @@ string Rdecoder(string Op, string rd, string rs1, string rs2){
     rs1 = RegisterNumber(rs1);
     rs2 = RegisterNumber(rs2);
 
+    // If rd or rs1 or rs2 are empty meaning the given register is not defined. 
     if(rd == ""){
         cout << "Could not find the destination register." << endl;
         cout << "Line number: " << current_line_no << endl;
@@ -322,6 +353,7 @@ string Idecoder(string Op, string rd, string rs1, string immediate){
     rd = RegisterNumber(rd);
     rs1 = RegisterNumber(rs1);
 
+    // If rd or rs1 are empty meaning the given register is not defined.
     if(rd == ""){
         cout << "Could not find the destination register." << endl;
         cout << "Line number: " << current_line_no << endl;
@@ -359,6 +391,7 @@ string Sdecoder(string Op, string rs2, string rs1, string immediate){
     rs2 = RegisterNumber(rs2);
     rs1 = RegisterNumber(rs1);
 
+    // If rs1 or rs2 are empty meaning the given register is not defined.
     if(rs1 == ""){
         cout << "Could not find the operand register 1." << endl;
         cout << "Line number: " << current_line_no << endl;
@@ -393,6 +426,7 @@ string Bdecoder(string Op, string rs1, string rs2, string offset){
     rs1 = RegisterNumber(rs1);
     rs2 = RegisterNumber(rs2);
 
+    // If rs1 or rs2 are empty meaning the given register is not defined.
     if(rs1 == ""){
         cout << "Could not find the operand register 1." << endl;
         cout << "Line number: " << current_line_no << endl;
@@ -427,12 +461,14 @@ string Udecoder(string Op, string rd, string imm){
 
     // passed imm is in binary.
     rd = RegisterNumber(rd);
-
+    
+    // If rd is empty then given register is not defined.
     if(rd == ""){
         cout << "Could not find the destination register." << endl;
         cout << "Line number: " << current_line_no << endl;
         exit(0);
     }
+
     imm += "000000000000";
     // adding 12 bits to the lsb.
     // we will ignore lsb 12 bits of imm.
@@ -459,6 +495,8 @@ string Jdecoder(string Op, string rd, string imm){
     // we need 21 bits of imm and we will ignore 0th bit.
 
     rd = RegisterNumber(rd);
+    
+    // If rd is empty then given register is not defined.
     if(rd == ""){
         cout << "Could not find the destination register." << endl;
         cout << "Line number: " << current_line_no << endl;
