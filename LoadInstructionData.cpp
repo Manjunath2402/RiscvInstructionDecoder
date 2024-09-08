@@ -10,8 +10,8 @@ static int current_line_no;
 map<string, string> BinToHex = {
     {"0000", "0"}, {"0001", "1"}, {"0010", "2"}, {"0011", "3"},
     {"0100", "4"}, {"0101", "5"}, {"0110", "6"}, {"0111", "7"},
-    {"1000", "8"}, {"1001", "9"}, {"1010", "A"}, {"1011", "B"},
-    {"1100", "C"}, {"1101", "D"}, {"1110", "E"}, {"1111", "F"}
+    {"1000", "8"}, {"1001", "9"}, {"1010", "a"}, {"1011", "b"},
+    {"1100", "c"}, {"1101", "d"}, {"1110", "e"}, {"1111", "f"}
 };
 
 // Hex to Binary for fast access.
@@ -164,8 +164,8 @@ string decoder(string s, int line_no){
             exit(0);
         }
         
-        // For load instructions the temp[3] will be operand2 and temp[2] will the offset.
-        if(mapI[temp[0]].opcode == "0000011"){
+        // For load and jalr instructions the temp[3] will be operand2 and temp[2] will the offset.
+        if((mapI[temp[0]].opcode == "0000011") || (mapI[temp[0]].opcode == "1100111")){
             // If offset is not provided.
             if(temp[2] == ""){
                 cout << "Immediate is not provided." << endl;
@@ -184,7 +184,8 @@ string decoder(string s, int line_no){
 
             machine_code = Idecoder(temp[0], temp[1], temp[3], temp[2]);
         }
-        // Instruction other than ld will come here.
+        
+        // Instruction other than ld and jalr will come here.
         else{
             // If immediate is not provided.
             if(temp[3] == ""){
@@ -495,7 +496,7 @@ string Jdecoder(string Op, string rd, string imm){
     // we need 21 bits of imm and we will ignore 0th bit.
 
     rd = RegisterNumber(rd);
-    
+
     // If rd is empty then given register is not defined.
     if(rd == ""){
         cout << "Could not find the destination register." << endl;
